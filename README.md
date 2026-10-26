@@ -6,6 +6,8 @@ Bring your devices together. Eluno shares selected videos and photos in either d
 
 Source repository: [beingaeditor/Eluno](https://github.com/beingaeditor/Eluno). Maintain application code, tests, documentation and CI here; keep credentials, local app data and generated build artifacts out of Git.
 
+Next implementation priorities: [future tasks and recommended delivery order](FUTURE_TASKS.md), covering Linux, uploads/receiving copies, and native iPhone/iPad support. Testing work is deferred for now at the user's request.
+
 ## For users
 
 The Windows application starts its connection service automatically. People using it do not run server commands or enter network addresses.

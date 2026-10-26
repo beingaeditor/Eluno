@@ -2,6 +2,8 @@
 
 Status: updated 24 October 2026 during implementation. Engineering progress is recorded separately from hardware, beta, and distribution acceptance.
 
+Direction update, 27 October 2026: use [FUTURE_TASKS.md](FUTURE_TASKS.md) for the current implementation backlog. The user requested Linux support and uploads to/from iPhone and iPad, and deferred testing work for now. Earlier validation gates below remain recorded rather than marked complete; they are not the current work queue.
+
 | Phase | Current status | Evidence |
 | --- | --- | --- |
 | 0 — Product definition | Complete; Windows + Android priority selected by the user | [Product brief](docs/phase-0/PRODUCT_BRIEF.md), [screen flows](docs/phase-0/SCREEN_FLOWS.md) |
