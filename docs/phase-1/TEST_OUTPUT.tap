@@ -1,0 +1,96 @@
+TAP version 13
+# Subtest: range parsing handles full, open-ended, suffix and invalid ranges
+ok 1 - range parsing handles full, open-ended, suffix and invalid ranges
+  ---
+  duration_ms: 1.4352
+  type: 'test'
+  ...
+# Subtest: pairing requires explicit approval and prevents unpaired content access
+ok 2 - pairing requires explicit approval and prevents unpaired content access
+  ---
+  duration_ms: 54.8389
+  type: 'test'
+  ...
+# Subtest: decline and cancellation release pairing requests
+ok 3 - decline and cancellation release pairing requests
+  ---
+  duration_ms: 20.9946
+  type: 'test'
+  ...
+# {"experiment":"forward-protocol","bytes":531942,"elapsedMs":19,"maximumRequestedChunk":262144}
+# {"experiment":"reverse-protocol","bytes":531942,"elapsedMs":9,"maximumRequestedChunk":262144}
+# Subtest: streams original bytes in both directions and supports seeking
+ok 4 - streams original bytes in both directions and supports seeking
+  ---
+  duration_ms: 51.4055
+  type: 'test'
+  ...
+# Subtest: photo transport works without Range and HEAD does not read source bytes
+ok 5 - photo transport works without Range and HEAD does not read source bytes
+  ---
+  duration_ms: 20.0605
+  type: 'test'
+  ...
+# Subtest: a virtual 5 GiB file can be sought without full-file buffering
+ok 6 - a virtual 5 GiB file can be sought without full-file buffering
+  ---
+  duration_ms: 13.9395
+  type: 'test'
+  ...
+# Subtest: revocation blocks existing tickets and unauthorized deletion
+ok 7 - revocation blocks existing tickets and unauthorized deletion
+  ---
+  duration_ms: 16.4386
+  type: 'test'
+  ...
+# Subtest: revocation cancels an in-flight read
+ok 8 - revocation cancels an in-flight read
+  ---
+  duration_ms: 14.0963
+  type: 'test'
+  ...
+# Subtest: leaving or ending a session invalidates media access
+ok 9 - leaving or ending a session invalidates media access
+  ---
+  duration_ms: 15.5243
+  type: 'test'
+  ...
+# Subtest: expired codes, pending approvals and sessions are rejected
+ok 10 - expired codes, pending approvals and sessions are rejected
+  ---
+  duration_ms: 16.9982
+  type: 'test'
+  ...
+# Subtest: code guesses are rate limited
+ok 11 - code guesses are rate limited
+  ---
+  duration_ms: 15.4294
+  type: 'test'
+  ...
+# Subtest: unsupported files, invalid byte ranges, forged hosts and cross-origin requests fail
+ok 12 - unsupported files, invalid byte ranges, forged hosts and cross-origin requests fail
+  ---
+  duration_ms: 17.3989
+  type: 'test'
+  ...
+# Subtest: unavailable sources time out and can recover on the same session
+ok 13 - unavailable sources time out and can recover on the same session
+  ---
+  duration_ms: 123.8801
+  type: 'test'
+  ...
+# Subtest: QR invitations produce local PNGs and reject external destinations
+ok 14 - QR invitations produce local PNGs and reject external destinations
+  ---
+  duration_ms: 25.8103
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 515.683

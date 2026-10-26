@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17624c">
+  <title>Eluno — Together across devices</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header><a class="brand" href="/" aria-label="Eluno home"><span class="mark">e</span> eluno<span class="brand-dot">.</span></a><span class="stage">EARLY PREVIEW <span>01</span></span></header>
+  <main>
+    <section class="intro"><p class="eyebrow">A LITTLE CLOSER. ACROSS EVERY SCREEN.</p><h1>Your world,<br><em>connected.</em></h1><p class="lede">Bring your devices together. Pick something to share, and enjoy it on the screen that feels right.</p><div class="principles"><span>↔ Both ways</span><span>◎ Only what you choose</span><span>⌂ On your network</span></div></section>
+    <section class="workspace" aria-label="Eluno workspace">
+      <div id="onboarding" class="panel">
+        <div class="step">01 / GET TOGETHER</div><h2>Start with this device.</h2><p>Give it a name you’ll recognize on your other screen.</p>
+        <form id="register"><label for="device-name">Device name</label><input id="device-name" name="name" placeholder="e.g. Living room PC" maxlength="120" required autocomplete="off"><button type="submit">Continue <span>↗</span></button></form>
+        <div class="soft-note">You choose every file you share. Eluno doesn’t browse your device.</div>
+      </div>
+      <div id="connect" class="panel" hidden>
+        <div class="step">02 / MAKE A CONNECTION</div><h2>Hello, <span id="hello-name"></span>.</h2><p>Start a connection here, or join one from another device.</p>
+        <button id="create-room">Connect another device <span>↗</span></button>
+        <div class="divider"><span>or enter a connection code</span></div>
+        <form id="join"><label for="pair-code">Six-digit code</label><div class="input-row"><input id="pair-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required autocomplete="off"><button type="submit">Join</button></div></form>
+      </div>
+      <div id="pending" class="panel" hidden><div class="step">JUST A MOMENT</div><h2>Waiting for approval.</h2><p>Approve this device on the screen that started the connection.</p><button class="secondary" id="cancel-join">Cancel request</button></div>
+      <div id="session" hidden>
+        <div class="panel session-top"><div><div class="step">YOUR CONNECTION</div><h2>Better, together.</h2></div><button id="leave" class="text-button">Disconnect</button><p id="members" class="member-line"></p><p id="expires" class="small"></p>
+          <div id="invitation" hidden><div class="pairing-layout"><div><p class="small">Enter this code on your other device</p><strong id="room-code" class="code"></strong><p class="small" id="code-expiry"></p><button id="renew" class="text-button">Get a new code</button></div><img id="qr" width="132" height="132" alt="Scan to open Eluno and enter this connection code" hidden></div><div id="address-choice" hidden><label for="connection-address">Connection to test</label><select id="connection-address"></select><p class="small">Scan with your other device’s camera, then approve it here.</p></div><p class="small" id="lan-note">This preview is on this computer only. Another tab can act as a second device.</p></div>
+          <div id="requests" aria-live="polite"></div>
+        </div>
+        <div class="panel library"><div class="library-heading"><div><div class="step">03 / SHARE SOMETHING</div><h2>A space between screens.</h2></div><label class="file-button" for="file-input">+ Add media<input id="file-input" type="file" multiple accept="video/mp4,video/webm,image/jpeg,image/png,image/webp"></label></div><p>Choose photos or videos from either device. Your originals stay where they are.</p><div id="files" class="file-list"></div><button class="text-button" id="samples">Try with sample media</button><p class="small">Keep Eluno open on the sharing device. This experiment supports MP4, WebM, JPEG, PNG, and WebP; playback depends on the device.</p></div>
+      </div>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+    </section>
+    <section class="preview-note"><span>WORK IN PROGRESS</span><p>This is a feasibility preview. Phone app installation, automatic discovery, and encrypted device connections are still ahead.</p></section>
+  </main>
+  <footer><span>ELUNO / ROOM TO GROW</span><span>Windows + Android first.</span></footer>
+  <dialog id="viewer"><div class="viewer-heading"><h2 id="viewer-title"></h2><button id="close-viewer" class="secondary">Close</button></div><div id="viewer-content"></div><p id="viewer-error" role="alert" hidden></p><button id="retry-viewer" class="secondary" hidden>Try again</button><div id="photo-controls" hidden><button id="previous-photo" class="secondary">← Previous</button><button id="zoom-photo" class="secondary">Zoom</button><button id="next-photo" class="secondary">Next →</button></div><p class="small">Stop sharing or disconnect to end access. Content already received cannot be recalled.</p></dialog>
+</body>
+</html>

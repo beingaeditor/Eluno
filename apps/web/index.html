@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17624c">
+  <title>Eluno — Together across devices</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header><a class="brand" href="#" aria-label="Eluno"><span class="mark">e</span> eluno<span class="brand-dot">.</span></a><div class="header-actions"><span class="stage">YOUR DEVICES. TOGETHER.</span><button id="help-open" class="secondary">Help</button></div></header>
+  <main>
+    <section class="intro"><p class="eyebrow">A LITTLE CLOSER. ACROSS EVERY SCREEN.</p><h1>Your world,<br><em>connected.</em></h1><p class="lede">Bring your devices together. Pick something to share, and enjoy it on the screen that feels right.</p><div class="principles"><span>↔ Both ways</span><span>◎ Only what you choose</span><span>⌂ On your network</span></div></section>
+    <section class="workspace" aria-label="Eluno workspace">
+      <div id="onboarding" class="panel">
+        <div class="step">01 / GET TOGETHER</div><h2>Start with this device.</h2><p>Give it a name you’ll recognize on your other screen.</p>
+        <form id="register"><label for="device-name">Device name</label><input id="device-name" name="name" placeholder="e.g. Living room PC" maxlength="120" required autocomplete="off"><button type="submit">Continue <span>↗</span></button></form>
+        <div class="soft-note">You choose every file you share. Eluno doesn’t browse your device.</div>
+      </div>
+      <div id="connect" class="panel" hidden>
+        <div class="step">02 / MAKE A CONNECTION</div><h2>Hello, <span id="hello-name"></span>.</h2><p>Start a connection here, or join one from another device.</p>
+        <button id="create-room">Connect another device <span>↗</span></button>
+        <div class="divider"><span>or enter a connection code</span></div>
+        <form id="join"><label for="pair-code">Six-digit code</label><div class="input-row"><input id="pair-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required autocomplete="off"><button type="submit">Join</button></div></form>
+      </div>
+      <div id="pending" class="panel" hidden><div class="step">JUST A MOMENT</div><h2>Waiting for approval.</h2><p>Approve this device on the screen that started the connection.</p><button class="secondary" id="cancel-join">Cancel request</button></div>
+      <div id="session" hidden>
+        <div class="panel session-top"><div><div class="step">YOUR CONNECTION</div><h2>Better, together.</h2></div><button id="leave" class="text-button">Disconnect</button><p id="members" class="member-line"></p><div id="device-actions" class="actions"></div><p id="expires" class="small"></p>
+          <div id="invitation" hidden><div class="pairing-layout"><div><p class="small">Invite your other screen</p><strong id="room-code" class="code"></strong><p class="small" id="code-expiry"></p><button id="renew" class="text-button">Get a new code</button></div><img id="qr" width="180" height="180" alt="Scan this invitation inside the Eluno Android app" hidden></div><p class="small" id="lan-note"></p></div>
+          <div id="requests" aria-live="polite"></div>
+        </div>
+        <div class="panel library"><div class="library-heading"><div><div class="step">YOUR SHARED SPACE</div><h2>A space between screens.</h2></div><label class="file-button" for="file-input">+ Add media<input id="file-input" type="file" multiple accept="video/mp4,video/webm,image/jpeg,image/png,image/webp"></label></div><p>Choose photos or videos from either device. Your originals stay where they are.</p><label class="check-label"><input type="checkbox" id="allow-copies"> Allow saving copies of the items I add</label><div class="filters"><label for="search">Find something<input type="search" id="search" placeholder="Search media or device names"></label><label for="media-filter">Show<select id="media-filter"><option value="">All media</option><option value="video/">Videos</option><option value="image/">Photos</option></select></label></div><p class="small" id="item-count"></p><div id="files" class="file-list"></div><button class="text-button" id="samples">Try with sample media</button><p class="small">Keep Eluno open on the sharing device. Supports MP4, WebM, JPEG, PNG, and WebP. Playback depends on the device’s codecs.</p></div>
+      </div>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+    </section>
+    <section class="preview-note"><span>PRIVATE BY DESIGN</span><p>Share only what you choose, on your own network. Disconnect to end access. Anyone who can view an item may retain it; copies already received cannot be recalled.</p></section>
+  </main>
+  <footer><span>ELUNO / ROOM TO GROW</span><span>Windows + Android first.</span></footer>
+  <dialog id="viewer"><div class="viewer-heading"><h2 id="viewer-title"></h2><button id="close-viewer" class="secondary">Close</button></div><div id="viewer-content"></div><p id="viewer-error" role="alert" hidden></p><button id="retry-viewer" class="secondary" hidden>Try again</button><div id="photo-controls" hidden><button id="previous-photo" class="secondary">← Previous</button><button id="zoom-photo" class="secondary">Zoom</button><button id="next-photo" class="secondary">Next →</button></div><p class="small">Stop sharing or disconnect to end access. Content already received cannot be recalled.</p></dialog>
+  <dialog id="help"><div class="viewer-heading"><h2>A little help getting together.</h2><button id="help-close" class="secondary">Close</button></div><h3>Connect your screens</h3><p>Open Eluno on Windows, name this device, and choose “Connect another device.” Open Eluno on Android, tap “Scan computer invitation,” and scan the square code. Approve the request on Windows.</p><h3>Share either way</h3><p>Use “Add media” on the computer or “Add photos or videos” on Android. Play or view those items on either screen. Keep both apps open; Android sharing pauses when the app is in the background.</p><h3>If it won’t connect</h3><p>Use the same home Wi-Fi. Guest networks and some VPNs separate devices. If Windows asks, allow Eluno on private networks. Reopen Eluno after changing networks, then scan a fresh invitation. Never disable your firewall.</p><h3>Your files and privacy</h3><p>No account, cloud upload, or analytics. Only your chosen media is shared. “Allow copies” adds a convenient download button; it cannot prevent a viewer from recording received content. Stop sharing an item, remove a device, or disconnect to end future access.</p><h3>Help with a connection</h3><p>A connection report includes the app version and counts of devices, items, and pending requests. It excludes names, addresses, media, and invitation secrets. Nothing is sent automatically.</p><button id="diagnostics" class="secondary">Save connection report</button><p class="small">Eluno 0.2.0 · Internal beta · Windows + Android first</p></dialog>
+</body>
+</html>

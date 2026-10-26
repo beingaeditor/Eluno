@@ -1,0 +1,42 @@
+{
+  "name": "eluno",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Eluno — private sharing across your devices",
+  "main": "apps/desktop/main.cjs",
+  "author": "Eluno",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node apps/companion/cli.mjs",
+    "start:lan": "node apps/companion/cli.mjs --lan",
+    "desktop": "electron .",
+    "package:windows": "electron-builder --win nsis --x64",
+    "package:portable": "electron-builder --win portable --x64",
+    "build:android": "node scripts/android-build.mjs assembleDebug",
+    "build:android:release": "node scripts/android-build.mjs assembleRelease",
+    "build:web": "node scripts/build-web.mjs",
+    "probe:discovery": "node prototype/discovery-probe.mjs",
+    "test": "node --test prototype/test/*.test.mjs tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "release:manifest": "node scripts/release-manifest.mjs"
+  },
+  "dependencies": {
+    "multicast-dns": "7.2.5",
+    "qrcode": "1.5.4",
+    "selfsigned": "5.5.0"
+  },
+  "devDependencies": { "electron": "45.0.0", "electron-builder": "26.15.3" },
+  "build": {
+    "appId": "app.eluno.desktop",
+    "productName": "Eluno",
+    "directories": { "output": "release/windows" },
+    "files": ["apps/desktop/**", "apps/web/**", "packages/**", "package.json"],
+    "win": { "target": ["nsis"], "icon": "apps/desktop/icon.ico", "signExecutable": false },
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true },
+    "artifactName": "Eluno-${version}-${arch}-Setup.${ext}",
+    "portable": { "artifactName": "Eluno-${version}-${arch}-Portable.${ext}" }
+  }
+}

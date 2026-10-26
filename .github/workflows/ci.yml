@@ -1,0 +1,52 @@
+name: Eluno checks and beta builds
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build:web
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run package:windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Eluno-Windows-internal-beta
+          path: release/windows/*.exe
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: node scripts/android-build.mjs testDebugUnitTest
+      - run: node scripts/android-build.mjs lintDebug
+      - run: node scripts/android-build.mjs assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Eluno-Android-internal-beta
+          path: apps/android/app/build/outputs/apk/debug/*.apk
