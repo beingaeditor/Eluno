@@ -22,3 +22,9 @@ apps/android/local.properties
 /review_video.py
 /transcribe_video.py
 /source-brief.docx
+
+# Apple developer-local build and signing state.
+apps/ios/**/xcuserdata/
+apps/ios/**/DerivedData/
+*.xcuserstate
+*.mobileprovision

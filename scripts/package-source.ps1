@@ -16,10 +16,10 @@ foreach ($rootName in $roots) {
         Copy-Item -LiteralPath $_.FullName -Destination $destination
     }
 }
-foreach ($name in @('README.md','PROJECT_PLAN.md','package.json','package-lock.json','.gitignore')) {
+foreach ($name in @('README.md','PROJECT_PLAN.md','FUTURE_TASKS.md','package.json','package-lock.json','.gitignore')) {
     Copy-Item -LiteralPath (Join-Path $elunoRoot $name) -Destination (Join-Path $staging $name)
 }
 New-Item -ItemType Directory -Path (Join-Path $elunoRoot 'release') -Force | Out-Null
-$archive = Join-Path $elunoRoot 'release/Eluno-0.2.0-source.zip'
+$archive = Join-Path $elunoRoot 'release/Eluno-0.3.0-source.zip'
 Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $archive -Force
 Write-Output $archive
