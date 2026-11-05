@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import https from 'node:https';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -19,6 +19,12 @@ async function setup(t, options = {}) {
   const { files: [file] } = await (await call('/api/files', owner, 'POST', { files: [{ name: 'sample.png', type: 'image/png', size: 20 }] })).json();
   return { app, call, owner, peer, file };
 }
+test('packaging never publishes, because on CI electron-builder would otherwise demand a GitHub token', async () => {
+  const { scripts } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const packaging = Object.entries(scripts).filter(([name]) => name.startsWith('package:'));
+  assert.deepEqual(packaging.map(([name]) => name).sort(), ['package:linux', 'package:portable', 'package:windows']);
+  for (const [name, command] of packaging) assert.match(command, /--publish never(\s|$)/, name);
+});
 test('saving copies is explicit, owner controlled, and revocable without revoking viewing', async t => {
   const { call, owner, peer, file } = await setup(t), route = `/api/files/${file.id}`;
   assert.equal((await call(route + '/open', peer, 'POST', { purpose: 'download' })).status, 403);
