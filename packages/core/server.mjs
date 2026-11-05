@@ -50,7 +50,7 @@ export async function createElunoServer(options = {}) {
   const sessionTtl = options.sessionTtl ?? 8 * 60 * 60_000;
   const readTimeout = options.readTimeout ?? 12_000;
   const devices = new Map(), rooms = new Map(), grants = new Map(), reads = new Map(), attempts = new Map(), streams = new Map();
-  const assets = new Map(await Promise.all(['index.html', 'app.js', 'styles.css'].map(async name => [
+  const assets = new Map(await Promise.all(['index.html', 'app.js', 'transfers.js', 'styles.css'].map(async name => [
     '/' + (name === 'index.html' ? '' : name),
     { data: await readFile(new URL('../../apps/web/' + name, import.meta.url)), type: name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html' }
   ])));
@@ -74,6 +74,7 @@ export async function createElunoServer(options = {}) {
     r.members.delete(id);
     for (const [key, file] of r.files) if (file.ownerId === id) r.files.delete(key);
     invalidate(g => g.roomId === r.id && (g.sourceId === id || g.viewerId === id));
+    for (const t of r.transfers.values()) if ([t.senderId, t.receiverId].includes(id) && !['completed', 'cancelled', 'declined'].includes(t.status)) { t.status = 'cancelled'; t.error = 'Device disconnected. Send a new copy after reconnecting.'; }
     if (d) { d.roomId = null; wake(d); }
     broadcast(r);
   };
@@ -107,7 +108,8 @@ export async function createElunoServer(options = {}) {
         pairExpiresAt: r.pairExpiresAt, expiresAt: r.expiresAt,
         members: [...r.members].map(id => { const p = devices.get(id); return { id, name: p.name, online: p.seenAt + 20_000 > now() }; }),
         pending: d.id === r.ownerId ? [...r.pending].map(id => ({ id, name: devices.get(id).name })) : [],
-        files: [...r.files.values()].map(f => ({ id: f.id, name: f.name, type: f.type, size: f.size, ownerId: f.ownerId, allowDownload: f.allowDownload }))
+        files: [...r.files.values()].map(f => ({ id: f.id, name: f.name, type: f.type, size: f.size, ownerId: f.ownerId, allowDownload: f.allowDownload, collection: f.collection || '' })),
+        transfers: [...r.transfers.values()].filter(t => t.senderId === d.id || t.receiverId === d.id)
       } : null,
       reads: [...reads.values()].filter(r => r.sourceId === d.id).map(r => ({ id: r.id, fileId: r.fileId, start: r.start, end: r.end }))
     };
@@ -149,7 +151,7 @@ export async function createElunoServer(options = {}) {
         res.writeHead(200, { 'Content-Type': asset.type }); res.end(asset.data); return;
       }
       if (req.method === 'GET' && url.pathname === '/api/health') {
-        json(res, 200, { product: 'Eluno', version: '0.2.0', protocol: PROTOCOL_VERSION, lan: Boolean(securePort), chunkBytes: CHUNK_BYTES, modules: MODULES }); return;
+        json(res, 200, { product: 'Eluno', version: '0.3.0', protocol: PROTOCOL_VERSION, lan: Boolean(securePort), chunkBytes: CHUNK_BYTES, modules: MODULES }); return;
       }
       if (req.method === 'POST' && url.pathname === '/api/devices') {
         rate(req, 'register', 30);
@@ -171,7 +173,7 @@ export async function createElunoServer(options = {}) {
         try { range = parseRange(req.headers.range, file.size); }
         catch (error) { res.setHeader('Content-Range', `bytes */${file.size}`); throw error; }
         const headers = { 'Content-Type': file.type, 'Accept-Ranges': 'bytes', 'Content-Length': range.end - range.start + 1 };
-        if (g.purpose === 'download') headers['Content-Disposition'] = `attachment; filename*=UTF-8''${encodeURIComponent(safeDownloadName(file.name)).replace(/['()*]/g, c => '%' + c.charCodeAt(0).toString(16))}`;
+        if (g.purpose === 'download' || g.purpose === 'transfer') headers['Content-Disposition'] = `attachment; filename*=UTF-8''${encodeURIComponent(safeDownloadName(file.name)).replace(/['()*]/g, c => '%' + c.charCodeAt(0).toString(16))}`;
         if (range.partial) headers['Content-Range'] = `bytes ${range.start}-${range.end}/${file.size}`;
         if (req.method === 'HEAD') { res.writeHead(range.partial ? 206 : 200, headers); res.end(); return; }
         if ([...streams.values()].filter(r => r.roomId === room.id).length >= LIMITS.concurrentStreams) fail(429, 'Too many simultaneous streams. Try again shortly.');
@@ -203,7 +205,7 @@ export async function createElunoServer(options = {}) {
         if (rooms.size >= LIMITS.rooms) fail(503, 'Connection limit reached. End an unused connection first.');
         let code;
         do { code = String(randomInt(100000, 1000000)); } while ([...rooms.values()].some(r => r.code === code));
-        const r = { id: randomUUID(), ownerId: d.id, code, pairExpiresAt: now() + pairTtl, expiresAt: now() + sessionTtl, members: new Set([d.id]), pending: new Set(), files: new Map() };
+        const r = { id: randomUUID(), ownerId: d.id, code, pairExpiresAt: now() + pairTtl, expiresAt: now() + sessionTtl, members: new Set([d.id]), pending: new Set(), files: new Map(), transfers: new Map() };
         rooms.set(r.id, r); d.roomId = r.id; wake(d);
         json(res, 201, snapshot(d)); return;
       }
@@ -232,8 +234,50 @@ export async function createElunoServer(options = {}) {
         r.resolve(bytes); json(res, 200, { ok: true }); return;
       }
       const r = activeRoom(d);
+      if (req.method === 'POST' && url.pathname === '/api/transfers') {
+        const { fileId, receiverId } = await input(req);
+        const file = r.files.get(fileId);
+        if (!file || file.ownerId !== d.id) fail(403, 'Only the sharing device can send this item.');
+        if (receiverId === d.id || !r.members.has(receiverId)) fail(400, 'Choose another connected device.');
+        if (r.transfers.size >= 100) {
+          for (const [id, transfer] of r.transfers) if (['completed', 'cancelled', 'declined'].includes(transfer.status)) { r.transfers.delete(id); break; }
+          if (r.transfers.size >= 100) fail(409, 'Finish or cancel an existing transfer first.');
+        }
+        if ([...r.transfers.values()].some(t => t.fileId === fileId && t.receiverId === receiverId && ['offered', 'receiving', 'paused'].includes(t.status))) fail(409, 'This device already has an active offer for this item.');
+        const transfer = { id: randomUUID(), fileId, senderId: d.id, receiverId, name: file.name, type: file.type, size: file.size, bytes: 0, status: 'offered', error: '' };
+        r.transfers.set(transfer.id, transfer); broadcast(r); json(res, 201, transfer); return;
+      }
+      const transferMatch = /^\/api\/transfers\/([^/]+)$/.exec(url.pathname);
+      if (transferMatch && req.method === 'PATCH') {
+        const t = r.transfers.get(transferMatch[1]);
+        if (!t || ![t.senderId, t.receiverId].includes(d.id)) fail(404, 'Transfer not found.');
+        if (['completed', 'cancelled', 'declined'].includes(t.status)) fail(409, 'This transfer has ended.');
+        const { action, bytes, error } = await input(req);
+        const receiver = d.id === t.receiverId;
+        let result = {};
+        if (action === 'cancel' || (action === 'decline' && receiver && t.status === 'offered')) {
+          t.status = action === 'cancel' ? 'cancelled' : 'declined';
+        } else if (receiver && ['accept', 'resume'].includes(action)) {
+          if (!['offered', 'paused'].includes(t.status) || !r.files.has(t.fileId)) fail(409, 'Transfer cannot be resumed. Send a new offer.');
+          // Offsets describe bytes already written by this receiver, never source paths.
+          if (!Number.isSafeInteger(bytes) || bytes < 0 || bytes > t.size) fail(400, 'Invalid saved offset.');
+          t.bytes = bytes; t.status = 'receiving'; t.error = '';
+          const ticket = secret();
+          grants.set(ticket, { roomId: r.id, sourceId: t.senderId, viewerId: t.receiverId, fileId: t.fileId, transferId: t.id, purpose: 'transfer', expiresAt: r.expiresAt });
+          result.url = `/media/${t.fileId}?ticket=${ticket}`;
+        } else if (receiver && action === 'progress' && t.status === 'receiving') {
+          if (!Number.isSafeInteger(bytes) || bytes < t.bytes || bytes > t.size) fail(400, 'Invalid transfer progress.');
+          t.bytes = bytes;
+        } else if (receiver && action === 'complete' && t.status === 'receiving' && t.bytes === t.size) {
+          t.status = 'completed';
+        } else if (receiver && action === 'pause' && t.status === 'receiving') {
+          t.status = 'paused'; t.error = typeof error === 'string' ? error.slice(0, 200) : '';
+        } else fail(409, 'This action is not available for this transfer.');
+        if (t.status !== 'receiving') invalidate(g => g.transferId === t.id);
+        broadcast(r); json(res, 200, { ...result, transfer: t }); return;
+      }
       if (req.method === 'GET' && url.pathname === '/api/diagnostics') {
-        json(res, 200, { product: 'Eluno', version: '0.2.0', protocol: PROTOCOL_VERSION, encryptedLan: Boolean(securePort), devices: r.members.size, sharedItems: r.files.size, pendingReads: [...reads.values()].filter(x => x.roomId === r.id).length }); return;
+        json(res, 200, { product: 'Eluno', version: '0.3.0', protocol: PROTOCOL_VERSION, encryptedLan: Boolean(securePort), devices: r.members.size, sharedItems: r.files.size, pendingReads: [...reads.values()].filter(x => x.roomId === r.id).length }); return;
       }
       if (req.method === 'DELETE' && url.pathname.startsWith('/api/members/')) {
         if (r.ownerId !== d.id) fail(403, 'Only the connection creator can remove a device.');
@@ -270,9 +314,9 @@ export async function createElunoServer(options = {}) {
       if (req.method === 'POST' && url.pathname === '/api/files') {
         const { files } = await input(req);
         if (!Array.isArray(files) || files.length > 50 || r.files.size + files.length > 250) fail(400, 'Select up to 50 files at a time.');
-        for (const f of files) if (!f || !cleanName(f.name) || !TYPES.has(f.type) || !Number.isSafeInteger(f.size) || f.size < 1 || (f.type.startsWith('image/') && f.size > LIMITS.imageBytes)) fail(415, 'Choose a non-empty MP4, WebM, JPEG, PNG, or WebP file. Photos must be at most 50 MB.');
+        for (const f of files) if (!f || !cleanName(f.name) || typeof f.type !== 'string' || f.type.length > 120 || (f.collection !== undefined && (typeof f.collection !== 'string' || f.collection.length > 120)) || !Number.isSafeInteger(f.size) || f.size < 1 || (f.type.startsWith('image/') && f.size > LIMITS.imageBytes)) fail(415, 'Choose a supported non-empty photo or video (MP4, WebM, MOV, JPEG, PNG, WebP, HEIC or HEIF). Photos must be at most 50 MB.');
         const added = files.map(f => {
-          const file = { id: randomUUID(), ownerId: d.id, name: f.name, type: f.type, size: f.size, allowDownload: f.allowDownload === true };
+          const file = { id: randomUUID(), ownerId: d.id, name: f.name, type: TYPES.has(f.type) ? f.type : 'application/octet-stream', size: f.size, allowDownload: f.allowDownload === true, collection: (f.collection || '').trim() };
           r.files.set(file.id, file); return file;
         });
         broadcast(r); json(res, 201, { files: added }); return;
@@ -283,7 +327,9 @@ export async function createElunoServer(options = {}) {
         if (!file) fail(404, 'This item is no longer shared.');
         if (req.method === 'PATCH' && !fileMatch[2]) {
           if (file.ownerId !== d.id) fail(403, 'Only the sharing device can change access.');
-          const { allowDownload } = await input(req);
+          const { allowDownload, collection } = await input(req);
+          if (collection !== undefined) { if (typeof collection !== 'string' || collection.length > 120) fail(400, 'Use a collection name up to 120 characters.'); file.collection = collection.trim(); }
+          if (allowDownload === undefined && collection !== undefined) { broadcast(r); json(res, 200, { ok: true }); return; }
           if (typeof allowDownload !== 'boolean') fail(400, 'Choose whether copies are allowed.');
           file.allowDownload = allowDownload;
           if (!allowDownload) invalidate(g => g.fileId === file.id && g.purpose === 'download');
@@ -291,13 +337,16 @@ export async function createElunoServer(options = {}) {
         }
         if (req.method === 'DELETE' && !fileMatch[2]) {
           if (file.ownerId !== d.id) fail(403, 'Only the sharing device can stop sharing this item.');
-          r.files.delete(file.id); invalidate(g => g.fileId === file.id); broadcast(r); json(res, 200, { ok: true }); return;
+          r.files.delete(file.id); invalidate(g => g.fileId === file.id);
+          for (const t of r.transfers.values()) if (t.fileId === file.id && !['completed', 'cancelled', 'declined'].includes(t.status)) { t.status = 'cancelled'; t.error = 'Source stopped sharing.'; }
+          broadcast(r); json(res, 200, { ok: true }); return;
         }
         if (req.method === 'POST' && fileMatch[2]) {
           const data = await body(req, 1024);
           let purpose = 'view';
           if (data.length) { try { purpose = JSON.parse(data.toString()).purpose || 'view'; } catch { fail(400, 'Invalid request.'); } }
           if (!['view', 'download'].includes(purpose)) fail(400, 'Unknown viewing mode.');
+          if (purpose === 'view' && !TYPES.has(file.type)) fail(415, 'This file is available as a copy only. Ask its owner to send it.');
           if (purpose === 'download' && !file.allowDownload) fail(403, 'The sharing device has not enabled saving copies.');
           for (const [key, grant] of grants) if (grant.viewerId === d.id && grant.fileId === file.id && grant.purpose === purpose) grants.delete(key);
           const ticket = secret();

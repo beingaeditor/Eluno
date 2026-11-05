@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '..');
-const executable = path.join(root, 'release/windows/win-unpacked/Eluno.exe');
+const executable = path.join(root, process.platform === 'linux' ? 'release/linux/linux-unpacked/eluno' : 'release/windows/win-unpacked/Eluno.exe');
 const data = path.join(root, '.eluno-local/packaged-smoke');
 await mkdir(data, { recursive: true });
 const environment = { ...process.env, ELUNO_DATA_DIR: data };

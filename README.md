@@ -8,6 +8,8 @@ Source repository: [beingaeditor/Eluno](https://github.com/beingaeditor/Eluno). 
 
 Next implementation priorities: [future tasks and recommended delivery order](FUTURE_TASKS.md), covering Linux, uploads/receiving copies, and native iPhone/iPad support. Testing work is deferred for now at the user's request.
 
+For the in-progress 0.3.0 Apple client, see the [iPhone and iPad implementation handoff](docs/IOS_IMPLEMENTATION_TASK.md) for build, signing and acceptance steps.
+
 ## For users
 
 The Windows application starts its connection service automatically. People using it do not run server commands or enter network addresses.

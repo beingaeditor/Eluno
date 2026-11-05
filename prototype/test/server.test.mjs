@@ -189,9 +189,14 @@ test('code guesses are rate limited', async t => {
   assert.equal((await f.call('/api/join', f.peer, 'POST', { code: f.room.code })).status, 429);
 });
 
-test('unsupported files, invalid byte ranges, forged hosts and cross-origin requests fail', async t => {
+test('unsupported files stay copy-only, and invalid byte ranges, forged hosts and cross-origin requests fail', async t => {
   const f = await setup(t); await f.pair();
-  assert.equal((await f.call('/api/files', f.owner, 'POST', { files: [{ name: 'script.svg', type: 'image/svg+xml', size: 10 }] })).status, 415);
+  // Any file may be sent as a copy, but an unsupported type must never be served as itself or opened for viewing.
+  const added = await f.call('/api/files', f.owner, 'POST', { files: [{ name: 'script.svg', type: 'image/svg+xml', size: 10 }] });
+  assert.equal(added.status, 201);
+  const [unsupported] = (await added.json()).files;
+  assert.equal(unsupported.type, 'application/octet-stream');
+  assert.equal((await f.call(`/api/files/${unsupported.id}/open`, f.peer, 'POST')).status, 415);
   assert.equal((await f.call('/api/rooms', f.owner, 'POST', undefined, { headers: { Origin: 'https://other.example' } })).status, 403);
   const forgedHostStatus = await new Promise((resolve, reject) => {
     http.get(f.app.url + '/api/health', { headers: { Host: 'attacker.example' } }, response => { response.resume(); resolve(response.statusCode); }).once('error', reject);

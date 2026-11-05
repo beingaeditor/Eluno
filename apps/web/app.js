@@ -1,6 +1,9 @@
+import { createTransfers } from './transfers.js';
 const $ = id => document.getElementById(id);
 let identity, state, version = -1, stopped = false, qrUrl, openingId, renderKey, openGeneration = 0;
+const favorites = new Set();
 const localFiles = new Map(), serving = new Set(), positions = new Map(), thumbnails = new Map();
+const transfers = createTransfers({ api, notice, button, identity: () => identity });
 const joinCode = new URLSearchParams(location.hash.slice(1)).get('join');
 if (joinCode && /^\d{6}$/.test(joinCode)) $('pair-code').value = joinCode;
 history.replaceState(null, '', '/');
@@ -39,13 +42,14 @@ async function updateQr() {
 }
 async function loadInvitation() {
   const { origins, lan } = await (await api('/api/addresses')).json();
-  $('lan-note').textContent = lan ? 'On your Android device, open Eluno → Scan computer invitation. Use the same Wi-Fi, then approve the request here.' : 'Browser preview: open Eluno in another tab and enter this code. The installed Windows app connects your Android devices.';
-  if (lan && !origins.length) { $('qr').hidden = true; notice('Connect your computer to a private Wi-Fi or home network, then restart Eluno to invite your Android device.'); return; }
+  $('lan-note').textContent = lan ? 'On your phone or tablet, open Eluno → Scan computer invitation. Use the same Wi-Fi, then approve the request here.' : 'Browser preview: open Eluno in another tab and enter this code. The installed desktop app connects your mobile devices.';
+  if (lan && !origins.length) { $('qr').hidden = true; notice('Connect your computer to a private Wi-Fi or home network, then restart Eluno to invite your mobile device.'); return; }
   await updateQr();
 }
 function render(next) {
   const oldRoom = state?.room?.id;
   state = next; version = next.version;
+  transfers.render(next.room);
   $('onboarding').hidden = Boolean(identity);
   $('connect').hidden = Boolean(next.room || next.pending);
   $('pending').hidden = !next.pending;
@@ -53,7 +57,7 @@ function render(next) {
   document.body.classList.toggle('connected', Boolean(next.room));
   $('hello-name').textContent = next.self.name;
   if (!next.room) {
-    if (oldRoom) { localFiles.clear(); closeViewer(); positions.clear(); thumbnails.clear(); notice('Connection ended. You can connect again whenever you’re ready.'); }
+    if (oldRoom) { localFiles.clear(); closeViewer(); positions.clear(); thumbnails.clear(); favorites.clear(); notice('Connection ended. You can connect again whenever you’re ready.'); }
     renderKey = null; return;
   }
   const room = next.room;
@@ -87,7 +91,7 @@ function renderFiles() {
   const room = state?.room; if (!room) return;
   const query = $('search').value.trim().toLocaleLowerCase();
   const kind = $('media-filter').value;
-  const shown = room.files.filter(f => (!kind || f.type.startsWith(kind)) && (f.name + ' ' + (room.members.find(m => m.id === f.ownerId)?.name || '')).toLocaleLowerCase().includes(query));
+  const shown = room.files.filter(f => (!kind || f.type.startsWith(kind)) && (!$('favorites-only').checked || favorites.has(f.id)) && (f.name + ' ' + (f.collection || '') + ' ' + (room.members.find(m => m.id === f.ownerId)?.name || '')).toLocaleLowerCase().includes(query));
   $('item-count').textContent = `${shown.length} of ${room.files.length} items`;
   $('files').replaceChildren();
   if (!shown.length) {
@@ -104,10 +108,14 @@ function renderFiles() {
     const name = document.createElement('strong'); name.textContent = file.name;
     const meta = document.createElement('small');
     meta.textContent = `${(file.size / 1024 / 1024).toFixed(1)} MB · ${room.members.find(m => m.id === file.ownerId)?.name || 'Device'}`;
+    if (file.collection) meta.textContent += ' · ' + file.collection;
     info.append(name, meta);
     const actions = document.createElement('div'); actions.className = 'file-actions';
-    actions.append(button(file.type.startsWith('video/') ? 'Play' : 'View', () => openFile(file)));
+    if (file.type.startsWith('video/') || file.type.startsWith('image/')) actions.append(button(file.type.startsWith('video/') ? 'Play' : 'View', () => openFile(file)));
+    actions.append(button(favorites.has(file.id) ? 'Unfavorite' : 'Favorite', () => { favorites.has(file.id) ? favorites.delete(file.id) : favorites.add(file.id); renderFiles(); }, 'text-button'));
+    if (file.ownerId === identity.id) actions.append(button('Move to collection', () => { $('edit-collection-name').value = file.collection || ''; $('edit-collection').showModal(); $('save-collection').onclick = () => run(async () => { await api('/api/files/' + file.id, { method: 'PATCH', data: { collection: $('edit-collection-name').value } }); $('edit-collection').close(); }); }, 'text-button'));
     if (file.allowDownload) actions.append(button('Save copy', () => saveCopy(file)));
+    if (file.ownerId === identity.id) actions.append(button('Send a copy', () => transfers.offer(file)));
     if (file.ownerId === identity.id) actions.append(button(file.allowDownload ? 'Disable copies' : 'Allow copies', () => api('/api/files/' + file.id, { method: 'PATCH', data: { allowDownload: !file.allowDownload } }), 'text-button'));
     if (file.ownerId === identity.id) actions.append(button('Stop', async () => { await api('/api/files/' + file.id, { method: 'DELETE' }); localFiles.delete(file.id); }, 'text-button stop'));
     item.append(icon, info, actions); $('files').append(item);
@@ -139,8 +147,8 @@ async function poll() {
 async function addFiles(files) {
   const list = [...files];
   if (!list.length) return;
-  const fallback = { mp4: 'video/mp4', webm: 'video/webm', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
-  const metadata = list.map(f => ({ name: f.name, size: f.size, type: f.type || fallback[f.name.split('.').pop().toLowerCase()] || 'application/octet-stream', allowDownload: $('allow-copies').checked }));
+  const fallback = { mp4: 'video/mp4', webm: 'video/webm', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif', mov: 'video/quicktime' };
+  const metadata = list.map(f => ({ name: f.name, size: f.size, type: f.type || fallback[f.name.split('.').pop().toLowerCase()] || 'application/octet-stream', allowDownload: $('allow-copies').checked, collection: $('collection-name').value.trim() || (f.webkitRelativePath ? f.webkitRelativePath.split('/')[0] : '') }));
   const added = await (await api('/api/files', { method: 'POST', data: { files: metadata } })).json();
   added.files.forEach((f, i) => localFiles.set(f.id, list[i]));
 }
@@ -183,6 +191,8 @@ for (const id of ['leave', 'cancel-join']) $(id).addEventListener('click', () =>
 $('renew').addEventListener('click', () => run(() => api('/api/renew-code', { method: 'POST' })));
 $('search').addEventListener('input', renderFiles);
 $('media-filter').addEventListener('change', renderFiles);
+$('favorites-only').addEventListener('change', renderFiles);
+$('folder-input').addEventListener('change', event => { const files = [...event.target.files]; event.target.value = ''; previewSelection(files); });
 $('help-open').addEventListener('click', () => $('help').showModal());
 $('help-close').addEventListener('click', () => $('help').close());
 $('diagnostics').addEventListener('click', () => run(async () => {
@@ -192,7 +202,22 @@ $('diagnostics').addEventListener('click', () => run(async () => {
   const link = document.createElement('a'); link.href = url; link.download = 'eluno-connection-report.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }));
 setInterval(() => { if (state?.room?.pairExpiresAt <= Date.now()) $('code-expiry').textContent = 'Invitation expired. Get a new code below.'; }, 1000);
-$('file-input').addEventListener('change', event => { const files = [...event.target.files]; event.target.value = ''; run(() => addFiles(files)); });
+let selectedFiles = [];
+function previewSelection(files) {
+  if (!state?.room) return notice('Connect your devices before choosing media.');
+  selectedFiles = [...files].slice(0, 50);
+  $('selection-list').replaceChildren();
+  for (const file of selectedFiles) { const item = document.createElement('li'); item.textContent = `${file.name} · ${(file.size / 1048576).toFixed(1)} MB`; $('selection-list').append(item); }
+  $('selection-note').textContent = files.length > 50 ? 'Only the first 50 items are selected. Add the remainder in another batch.' : 'These items become viewable by your connected devices. Use Send a copy afterward to choose a recipient.';
+  if (selectedFiles.length) $('selection').showModal();
+}
+$('file-input').addEventListener('change', event => { const files = [...event.target.files]; event.target.value = ''; previewSelection(files); });
+$('selection-cancel').addEventListener('click', () => { selectedFiles = []; $('selection').close(); });
+$('selection-share').addEventListener('click', () => run(async () => { await addFiles(selectedFiles); selectedFiles = []; $('selection').close(); }));
+$('cancel-collection').addEventListener('click', () => $('edit-collection').close());
+$('send-cancel').addEventListener('click', () => $('send-dialog').close());
+document.addEventListener('dragover', event => { event.preventDefault(); });
+document.addEventListener('drop', event => { event.preventDefault(); if (event.dataTransfer.files.length) previewSelection(event.dataTransfer.files); });
 $('close-viewer').addEventListener('click', closeViewer);
 $('viewer').addEventListener('cancel', event => { event.preventDefault(); closeViewer(); });
 $('retry-viewer').addEventListener('click', () => run(() => openFile(state.room.files.find(f => f.id === openingId))));

@@ -1,6 +1,6 @@
 {
   "name": "eluno",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Eluno — private sharing across your devices",
@@ -13,30 +13,73 @@
     "start": "node apps/companion/cli.mjs",
     "start:lan": "node apps/companion/cli.mjs --lan",
     "desktop": "electron .",
-    "package:windows": "electron-builder --win nsis --x64",
-    "package:portable": "electron-builder --win portable --x64",
+    "package:windows": "electron-builder --win nsis --x64 --publish never",
+    "package:portable": "electron-builder --win portable --x64 --publish never",
     "build:android": "node scripts/android-build.mjs assembleDebug",
     "build:android:release": "node scripts/android-build.mjs assembleRelease",
     "build:web": "node scripts/build-web.mjs",
     "probe:discovery": "node prototype/discovery-probe.mjs",
     "test": "node --test prototype/test/*.test.mjs tests/*.test.mjs",
     "check": "node scripts/check.mjs",
-    "release:manifest": "node scripts/release-manifest.mjs"
+    "release:manifest": "node scripts/release-manifest.mjs",
+    "package:linux": "electron-builder --linux AppImage deb --x64 --publish never --config.directories.output=release/linux",
+    "project:ios": "node scripts/ios-project.mjs",
+    "test:ios": "bash scripts/ios-test.sh"
   },
   "dependencies": {
     "multicast-dns": "7.2.5",
     "qrcode": "1.5.4",
     "selfsigned": "5.5.0"
   },
-  "devDependencies": { "electron": "45.0.0", "electron-builder": "26.15.3" },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3"
+  },
   "build": {
     "appId": "app.eluno.desktop",
     "productName": "Eluno",
-    "directories": { "output": "release/windows" },
-    "files": ["apps/desktop/**", "apps/web/**", "packages/**", "package.json"],
-    "win": { "target": ["nsis"], "icon": "apps/desktop/icon.ico", "signExecutable": false },
-    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true },
+    "directories": {
+      "output": "release/windows"
+    },
+    "files": [
+      "apps/desktop/**",
+      "apps/web/**",
+      "packages/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "apps/desktop/icon.ico",
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
     "artifactName": "Eluno-${version}-${arch}-Setup.${ext}",
-    "portable": { "artifactName": "Eluno-${version}-${arch}-Portable.${ext}" }
+    "portable": {
+      "artifactName": "Eluno-${version}-${arch}-Portable.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "apps/desktop/icon.png",
+      "category": "AudioVideo",
+      "maintainer": "Eluno <beingaeditor@users.noreply.github.com>",
+      "artifactName": "Eluno-${version}-${arch}.${ext}",
+      "desktop": {
+        "entry": {
+          "Name": "Eluno",
+          "Comment": "Private sharing across your devices",
+          "Categories": "AudioVideo;Network;"
+        }
+      }
+    }
   }
 }
