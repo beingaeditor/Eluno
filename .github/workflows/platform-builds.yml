@@ -1,0 +1,51 @@
+name: Cross-platform compilation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/ios/**'
+      - 'scripts/ios-*.mjs'
+      - 'scripts/ios-*.sh'
+      - '.github/workflows/platform-builds.yml'
+permissions:
+  contents: read
+jobs:
+  linux:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run package:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Eluno-Linux-unsigned
+          path: |
+            release/linux/*.AppImage
+            release/linux/*.deb
+  apple:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify generated Xcode project
+        run: |
+          npm run project:ios
+          git diff --exit-code -- apps/ios/Eluno.xcodeproj
+      - name: Compile simulator and device targets
+        run: bash scripts/ios-build.sh
+      - name: Run iOS logic tests
+        run: bash scripts/ios-test.sh
+      - name: Package simulator app
+        run: ditto -c -k --keepParent release/apple/simulator/Build/Products/Debug-iphonesimulator/Eluno.app release/apple/Eluno-iOS-Simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Eluno-iOS-Simulator-unsigned
+          path: release/apple/Eluno-iOS-Simulator.zip
+          if-no-files-found: error
